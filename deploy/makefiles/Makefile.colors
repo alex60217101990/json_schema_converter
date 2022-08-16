@@ -1,0 +1,15 @@
+export BOLD=\x1b[1m    # begin bold
+export UNDERLINE=\x1b[4m     # begin underline
+export DIM=\x1b[2m # begin dim
+
+
+export COLOR_NC=\x1b[0m # No Color
+export COLOR_WHITE=\x1b[30;01m
+export COLOR_BLACK='\e[0;30m'
+export COLOR_BLUE=\x1b[34;01m
+export COLOR_GREEN=\x1b[32;01m
+export COLOR_CYAN=\x1b[36;01m
+export COLOR_RED=\x1b[31;01m
+export COLOR_PURPLE=\x1b[35;01m
+export COLOR_YELLOW=\x1b[33;01m
+export COLOR_GRAY=\x1b[37;01m
