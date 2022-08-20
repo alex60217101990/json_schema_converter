@@ -9,6 +9,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/enums"
+	"github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/types"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -17,8 +19,11 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/fatih/color"
+	"github.com/karuppiah7890/go-jsonschema-generator"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	yaml_v3 "gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 
 	utils "github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/utils"
@@ -99,6 +104,16 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		var data yaml_v3.Node
+		err = yaml_v3.Unmarshal(val, &data)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		p := &utils.Parser{}
+		p.Init(&log).Start(&data, "", false)
+
 		valuesJSON, err := yaml.YAMLToJSON(val)
 		if err != nil {
 			log.Error().Msg(err.Error())
@@ -109,7 +124,84 @@ var rootCmd = &cobra.Command{
 			valuesJSON = []byte("{}")
 		}
 
-		bts, err := json.MarshalIndent(valuesJSON, "", "\t")
+		var v chartutil.Values
+		err = yaml_v3.Unmarshal(val, &v)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		schema := &jsonschema.Document{}
+		schema.ReadDeep(&v)
+		jsonBts, err := schema.Marshal()
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		var modified []byte
+
+		patchesJSON := []*types.Patch{{
+			OperationType: enums.Replace,
+			Path:          "/$schema",
+			Value:         []byte(`"https://json-schema.org/draft/2019-09/schema"`),
+		}}
+
+		for path, object := range p.ChangeAllPath(jsonBts) {
+			patchesJSON = append(patchesJSON, &types.Patch{
+				OperationType: enums.Replace,
+				Path:          path,
+				Value:         []byte(object),
+			})
+		}
+
+		tmpBts, err := json.Marshal(patchesJSON)
+		if err != nil {
+			log.Fatal().Msg(err.Error())
+		}
+
+		patch, err := jsonpatch.DecodePatch(tmpBts)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		modified, err = patch.Apply(jsonBts)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		bts, err := utils.PrettyString(modified)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
+
+		if schemaPath == defaultSchemaDir {
+			tmpPath := filepath.Join(rootDir, filepath.Dir(defaultSchemaDir))
+			if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
+				if err = os.MkdirAll(tmpPath, 0755); err != nil {
+					log.Error().Msg(err.Error())
+					return
+				}
+
+				defer func() {
+					_ = os.RemoveAll(tmpPath)
+				}()
+			}
+
+			newSchema := filepath.Join(tmpPath, "new-values.schema.json")
+			err = ioutil.WriteFile(newSchema, bts, 0644)
+			if err != nil {
+				log.Error().Msg(err.Error())
+				return
+			}
+
+			schemaPath = filepath.Join(tmpPath, "values.schema.json")
+		}
+
+		bts, err = json.MarshalIndent(valuesJSON, "", "\t")
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
@@ -151,7 +243,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		// merge 2 json schemas...
-		modified, err := jsonpatch.MergePatch(stdout, patchJSON)
+		modified, err = jsonpatch.MergePatch(stdout, patchJSON)
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
@@ -163,22 +255,6 @@ var rootCmd = &cobra.Command{
 		if err != nil {
 			log.Error().Msg(err.Error())
 			return
-		}
-
-		if schemaPath == defaultSchemaDir {
-			tmpPath := filepath.Join(rootDir, filepath.Dir(defaultSchemaDir))
-			if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
-				if err = os.MkdirAll(tmpPath, 0755); err != nil {
-					log.Error().Msg(err.Error())
-					return
-				}
-
-				defer func() {
-					_ = os.RemoveAll(tmpPath)
-				}()
-			}
-
-			schemaPath = filepath.Join(tmpPath, "values.schema.json")
 		}
 
 		log.Info().Msgf("write schema into file: %s", schemaPath)
