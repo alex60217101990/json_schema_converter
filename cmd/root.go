@@ -9,8 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/enums"
-	"github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/types"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -26,7 +24,10 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 
-	utils "github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/utils"
+	"github.com/alex60217101990/json_schema_generator/internal/enums"
+	"github.com/alex60217101990/json_schema_generator/internal/parser"
+	"github.com/alex60217101990/json_schema_generator/internal/types"
+	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
 )
 
 const (
@@ -111,7 +112,7 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		p := &utils.Parser{}
+		p := &parser.Parser{}
 		p.Init(&log).Start(&data, "", false)
 
 		valuesJSON, err := yaml.YAMLToJSON(val)
@@ -124,6 +125,7 @@ var rootCmd = &cobra.Command{
 			valuesJSON = []byte("{}")
 		}
 
+		//--------
 		var v chartutil.Values
 		err = yaml_v3.Unmarshal(val, &v)
 		if err != nil {
@@ -177,6 +179,7 @@ var rootCmd = &cobra.Command{
 			log.Error().Msg(err.Error())
 			return
 		}
+		//--------
 
 		if schemaPath == defaultSchemaDir {
 			tmpPath := filepath.Join(rootDir, filepath.Dir(defaultSchemaDir))
