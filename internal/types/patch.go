@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/json"
 
-	"github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/enums"
+	"github.com/alex60217101990/json_schema_generator/internal/enums"
 )
 
 type Patch struct {

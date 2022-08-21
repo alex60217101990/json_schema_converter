@@ -7,4 +7,5 @@ type PatchOperation int
 const (
 	Replace PatchOperation = iota // PatchOperation replace json field
 	Remove                        // PatchOperation remove json field
+	Add                           // PatchOperation add json field
 )

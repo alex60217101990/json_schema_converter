@@ -36,6 +36,7 @@ func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[string]string) {
 			correctPath string
 			jsonPath    string
 		)
+
 		//for _, field := range strings.Split(path, ".properties") {
 		//	correctPath = fmt.Sprintf("%s/properties/%s", correctPath, field)
 		//	jsonPath = fmt.Sprintf("%s.properties.%s", jsonPath, field)

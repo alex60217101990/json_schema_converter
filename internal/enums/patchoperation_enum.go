@@ -17,11 +17,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[Replace-0]
 	_ = x[Remove-1]
+	_ = x[Add-2]
 }
 
-const _PatchOperation_name = "replaceremove"
+const _PatchOperation_name = "replaceremoveadd"
 
-var _PatchOperation_index = [...]uint8{0, 7, 13}
+var _PatchOperation_index = [...]uint8{0, 7, 13, 16}
 
 func _() {
 	var _nil_PatchOperation_value = func() (val PatchOperation) { return }()
@@ -44,11 +45,12 @@ func (i PatchOperation) New() *PatchOperation {
 	return &clone
 }
 
-var _PatchOperation_values = []PatchOperation{0, 1}
+var _PatchOperation_values = []PatchOperation{0, 1, 2}
 
 var _PatchOperation_name_to_values = map[string]PatchOperation{
-	_PatchOperation_name[0:7]:  0,
-	_PatchOperation_name[7:13]: 1,
+	_PatchOperation_name[0:7]:   0,
+	_PatchOperation_name[7:13]:  1,
+	_PatchOperation_name[13:16]: 2,
 }
 
 // ParsePatchOperationString retrieves an enum value from the enum constants string name.
