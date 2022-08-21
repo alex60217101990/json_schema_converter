@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 
-	utils "github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator/internal/utils"
+	utils "github.com/alex60217101990/json_schema_converter/internal/utils"
 )
 
 const (

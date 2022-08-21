@@ -1,4 +1,4 @@
-module github.com/ccs-installer/uber-installer/src/dind-pipeline-installer/schema-generator
+module github.com/alex60217101990/json_schema_converter
 
 go 1.18
 
