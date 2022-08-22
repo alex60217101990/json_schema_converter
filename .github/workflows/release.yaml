@@ -12,8 +12,6 @@ jobs:
         goos: [linux, windows, darwin]
         goarch: ["386", amd64, arm64]
         exclude:
-          - goarch: "386"
-            goos: darwin
           - goarch: arm64
             goos: windows
     steps:
@@ -27,3 +25,5 @@ jobs:
           project_path: "."
           binary_name: "schema-generator"
           extra_files: "./scripts/install.sh"
+          md5sum: false
+          sha256sum: true
