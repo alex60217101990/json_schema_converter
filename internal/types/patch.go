@@ -11,3 +11,7 @@ type Patch struct {
 	Path          string               `json:"path"`
 	Value         json.RawMessage      `json:"value"`
 }
+
+type Required struct {
+	RequiredList []string `json:"required"`
+}

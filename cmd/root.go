@@ -9,24 +9,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	jsonpatch "github.com/evanphx/json-patch"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	//jsonpatch "github.com/evanphx/json-patch"
 	"github.com/fatih/color"
-	"github.com/karuppiah7890/go-jsonschema-generator"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	yaml_v3 "gopkg.in/yaml.v3"
-	"helm.sh/helm/v3/pkg/chartutil"
 	"sigs.k8s.io/yaml"
 
-	"github.com/alex60217101990/json_schema_generator/internal/enums"
 	"github.com/alex60217101990/json_schema_generator/internal/parser"
-	"github.com/alex60217101990/json_schema_generator/internal/types"
 	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
 )
 
@@ -112,8 +109,14 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
+		var modified []byte
+		var bts []byte
 		p := &parser.Parser{}
-		p.Init(&log).Start(&data, "", false)
+		bts, err = p.Init(&log).ParseSync(&data, val)
+		if err != nil {
+			log.Error().Msg(err.Error())
+			return
+		}
 
 		valuesJSON, err := yaml.YAMLToJSON(val)
 		if err != nil {
@@ -124,62 +127,6 @@ var rootCmd = &cobra.Command{
 		if bytes.Equal(valuesJSON, []byte("null")) {
 			valuesJSON = []byte("{}")
 		}
-
-		//--------
-		var v chartutil.Values
-		err = yaml_v3.Unmarshal(val, &v)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
-
-		schema := &jsonschema.Document{}
-		schema.ReadDeep(&v)
-		jsonBts, err := schema.Marshal()
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
-
-		var modified []byte
-
-		patchesJSON := []*types.Patch{{
-			OperationType: enums.Replace,
-			Path:          "/$schema",
-			Value:         []byte(`"https://json-schema.org/draft/2019-09/schema"`),
-		}}
-
-		for path, object := range p.ChangeAllPath(jsonBts) {
-			patchesJSON = append(patchesJSON, &types.Patch{
-				OperationType: enums.Replace,
-				Path:          path,
-				Value:         []byte(object),
-			})
-		}
-
-		tmpBts, err := json.Marshal(patchesJSON)
-		if err != nil {
-			log.Fatal().Msg(err.Error())
-		}
-
-		patch, err := jsonpatch.DecodePatch(tmpBts)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
-
-		modified, err = patch.Apply(jsonBts)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
-
-		bts, err := utils.PrettyString(modified)
-		if err != nil {
-			log.Error().Msg(err.Error())
-			return
-		}
-		//--------
 
 		if schemaPath == defaultSchemaDir {
 			tmpPath := filepath.Join(rootDir, filepath.Dir(defaultSchemaDir))

@@ -2,49 +2,71 @@ package parser
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/alex60217101990/json_schema_generator/internal/types"
+	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/karuppiah7890/go-jsonschema-generator"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v3"
+
+	"github.com/alex60217101990/json_schema_generator/internal/enums"
 )
+
+// jessie ware - remember where you are
 
 const (
 	patternGroupName = "Json"
+
+	defaultSchemaUrl = "https://json-schema.org/draft/2019-09/schema"
 )
 
 type Parser struct {
-	log     *zerolog.Logger
-	regexp  *regexp.Regexp
-	patches map[string]string
+	log    *zerolog.Logger
+	regexp *regexp.Regexp
+
+	patches         map[string]string
+	patchesRequired map[string][]string
+
+	errCh  chan error
+	stopCh chan struct{}
 }
 
-func (p *Parser) PatchesList() map[string]string {
-	return p.patches
-}
+func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[enums.PatchOperation]map[string]string) {
+	data = make(map[enums.PatchOperation]map[string]string, 2)
+	data[enums.Replace] = make(map[string]string, len(p.patches))
+	data[enums.Add] = make(map[string]string, len(p.patchesRequired))
 
-func (p *Parser) Length() int {
-	return len(p.patches)
-}
+	var (
+		correctPath string
+		jsonPath    string
+	)
 
-func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[string]string) {
-	data = make(map[string]string, len(p.patches))
+	for path, val := range p.patchesRequired {
+		correctPath = fmt.Sprintf("/properties/%s", strings.ReplaceAll(path, ".", "/"))
+		jsonPath = fmt.Sprintf("properties.%s", path)
+
+		m, ok := gjson.ParseBytes(jsonSchema).Get(jsonPath).Value().(map[string]interface{})
+		if ok && len(m) > 0 {
+			m["required"] = val
+
+			bts, err := json.Marshal(m)
+			if err != nil {
+				p.log.Fatal().Msg(err.Error())
+			}
+
+			data[enums.Add][correctPath] = string(bts)
+		}
+	}
+
 	for path, val := range p.patches {
-		var (
-			correctPath string
-			jsonPath    string
-		)
-
-		//for _, field := range strings.Split(path, ".properties") {
-		//	correctPath = fmt.Sprintf("%s/properties/%s", correctPath, field)
-		//	jsonPath = fmt.Sprintf("%s.properties.%s", jsonPath, field)
-		//}
-
-		////correctPath = strings.TrimPrefix(correctPath, "/")
-		//jsonPath = strings.TrimPrefix(jsonPath, ".")
-
 		correctPath = fmt.Sprintf("/properties/%s", strings.ReplaceAll(path, ".", "/"))
 		jsonPath = fmt.Sprintf("properties.%s", path)
 
@@ -65,66 +87,195 @@ func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[string]string) {
 				p.log.Fatal().Msg(err.Error())
 			}
 
-			data[correctPath] = string(newBts)
+			data[enums.Replace][correctPath] = string(newBts)
 			continue
 		}
 
-		data[correctPath] = val
+		data[enums.Replace][correctPath] = val
 	}
 
 	return data
 }
 
+func (p *Parser) ParseSync(node *yaml.Node, val []byte) (output []byte, err error) {
+	out, errCh := p.ParseAsync(node, val)
+
+	for {
+		select {
+		case output = <-out:
+			return output, nil
+		case err = <-errCh:
+			return nil, err
+		case <-p.stopCh:
+			return output, nil
+		}
+	}
+}
+
+func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan error) {
+	outputCh := make(chan []byte)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				switch err := r.(type) {
+				case string:
+					p.errCh <- errors.New(err)
+				case error:
+					p.errCh <- err
+				}
+			}
+
+			close(outputCh)
+			close(p.errCh)
+
+			p.stopCh <- struct{}{}
+			close(p.stopCh)
+		}()
+
+		p.start(node, "", false)
+
+		var v chartutil.Values
+		err := yaml.Unmarshal(val, &v)
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		schema := &jsonschema.Document{}
+		schema.ReadDeep(&v)
+		jsonBts, err := schema.Marshal()
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		var modified []byte
+
+		patchesJSON := []*types.Patch{{
+			OperationType: enums.Replace,
+			Path:          "/$schema",
+			Value:         []byte(fmt.Sprintf(`"%s"`, defaultSchemaUrl)),
+		}}
+
+		patches := p.ChangeAllPath(jsonBts)
+
+		for path, object := range patches[enums.Add] {
+			patchesJSON = append(patchesJSON, &types.Patch{
+				OperationType: enums.Add,
+				Path:          path,
+				Value:         []byte(object),
+			})
+		}
+
+		for path, object := range patches[enums.Replace] {
+			patchesJSON = append(patchesJSON, &types.Patch{
+				OperationType: enums.Replace,
+				Path:          path,
+				Value:         []byte(object),
+			})
+		}
+
+		tmpBts, err := json.Marshal(patchesJSON)
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		patch, err := jsonpatch.DecodePatch(tmpBts)
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		modified, err = patch.Apply(jsonBts)
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		bts, err := utils.PrettyString(modified)
+		if err != nil {
+			p.errCh <- err
+			return
+		}
+
+		outputCh <- bts
+	}()
+
+	return outputCh, p.errCh
+}
+
 func (p *Parser) Init(log *zerolog.Logger) *Parser {
 	p.log = log
 	p.patches = make(map[string]string)
+	p.patchesRequired = make(map[string][]string)
 	p.regexp = regexp.MustCompile(fmt.Sprintf(`@jsonSchema:\s?(?P<%s>{.*})`, patternGroupName))
+	p.errCh = make(chan error, 10)
+	p.stopCh = make(chan struct{})
+
 	return p
 }
 
-func (p *Parser) Start(n *yaml.Node, path string, isSlice bool) {
+func (p *Parser) start(n *yaml.Node, path string, isSlice bool) {
 	newPath := path
 	var checkSliceParent bool
 	for i, node := range n.Content {
 		if node.LineComment != "" && strings.Contains(node.LineComment, "@jsonSchema") {
 			var (
-				key     string
-				value   string
-				preffix string
+				key    string
+				value  string
+				prefix string
 			)
 
 			if isSlice {
-				preffix = "items.properties"
+				prefix = "items.properties"
 			} else {
-				preffix = "properties"
+				prefix = "properties"
 			}
 
 			if node.Value == "annotations" || n.Content[i-1].Value == "annotations" {
 				p.log.Info().Msgf("comment: %s, path: %s", node.LineComment, key)
 			}
 
+			var fieldName string
 			if node.Tag != "!!str" {
-				key = fmt.Sprintf("%s.%s.%s", path, preffix, n.Content[i-1].Value)
+				key = fmt.Sprintf("%s.%s.%s", path, prefix, n.Content[i-1].Value)
+				fieldName = n.Content[i-1].Value
 			} else {
-				key = fmt.Sprintf("%s.%s.%s", path, preffix, node.Value)
+				key = fmt.Sprintf("%s.%s.%s", path, prefix, node.Value)
+				fieldName = node.Value
 			}
 
+			val := make(map[string]interface{})
 			match := p.regexp.FindStringSubmatch(node.LineComment)
+
 			for i, name := range p.regexp.SubexpNames() {
 				if name == patternGroupName && len(match[i]) > 0 {
-					val := make(map[string]interface{})
 					err := json.Unmarshal([]byte(match[i]), &val)
 					if err != nil {
-						p.log.Fatal().Msg(err.Error())
+						p.errCh <- err
 					}
 
 					value = match[i]
-					//value["type"] = ""
 				}
 			}
 
 			p.log.Info().Msgf("comment: %s, path: %s", node.LineComment, key)
 			p.patches[key] = value
+
+			if v, ok := val["required"]; ok {
+				err := p.appendRequired(v, true, path, fieldName)
+				if err != nil {
+					p.errCh <- err
+				}
+			}
+
+			if v, ok := val["optional"]; ok {
+				err := p.appendRequired(v, false, path, fieldName)
+				if err != nil {
+					p.errCh <- err
+				}
+			}
 		}
 
 		if node.Tag == "!!map" || node.Tag == "!!seq" {
@@ -145,6 +296,43 @@ func (p *Parser) Start(n *yaml.Node, path string, isSlice bool) {
 			checkSliceParent = true
 		}
 
-		p.Start(node, newPath, checkSliceParent)
+		p.start(node, newPath, checkSliceParent)
 	}
+}
+
+func (p *Parser) appendRequired(value interface{}, requiredField bool, path, fieldName string) (err error) {
+	switch requiredInfo := value.(type) {
+	case string:
+		var boolValue bool
+		boolValue, err = strconv.ParseBool(requiredInfo)
+		if err != nil {
+			return err
+		}
+
+		if requiredField {
+			if boolValue && len(path) > 0 {
+				p.patchesRequired[path] = append(p.patchesRequired[path], fieldName)
+			}
+
+			return
+		}
+
+		if !boolValue && len(path) > 0 {
+			p.patchesRequired[path] = append(p.patchesRequired[path], fieldName)
+		}
+	case bool:
+		if requiredField {
+			if requiredInfo && len(path) > 0 {
+				p.patchesRequired[path] = append(p.patchesRequired[path], fieldName)
+			}
+
+			return
+		}
+
+		if !requiredInfo && len(path) > 0 {
+			p.patchesRequired[path] = append(p.patchesRequired[path], fieldName)
+		}
+	}
+
+	return
 }
