@@ -15,7 +15,7 @@ curl -J -s \
 
 . "$depsPath"/logger.sh -c=true
 
-HELM_PLUGIN_DIR=$(echo "$(helm env | grep HELM_PLUGIN)" | cut -d '=' -f 2-)
+HELM_PLUGIN_DIR="$(echo "$(helm env | grep HELM_PLUGIN)" | cut -d '=' -f 2- | tr -d '"')/schema-generator"
 
 INFO "$HELM_PLUGIN_DIR"
 
@@ -113,11 +113,63 @@ function http_download_curl() {
   return 0
 }
 
-PROJECT_NAME="helm-schema-gen"
+function is_command() {
+  command -v "$1" >/dev/null
+}
+
+function untar() {
+  tarball=$1
+  dir=$2
+  case "${tarball}" in
+    *.tar.gz | *.tgz | *.tar.gz.sha256 | *.tgz.sha256) tar --no-same-owner -xzf "${tarball}" --directory "${dir}" ;;
+    *.tar | *.tar.sha256) tar --no-same-owner -xf "${tarball}" --directory "${dir}" ;;
+    *.zip | *.zip.sha256) unzip "${tarball}" -d "${dir}" ;;
+    *)
+      ERROR "untar unknown archive format for ${tarball}"
+      exit 1
+      ;;
+  esac
+}
+
+function hash_sha256() {
+  TARGET=${1:-/dev/stdin}
+  if is_command gsha256sum; then
+    hash=$(gsha256sum "$TARGET") || return 1
+    echo "$hash" | cut -d ' ' -f 1
+  elif is_command sha256sum; then
+    hash=$(sha256sum "$TARGET") || return 1
+    echo "$hash" | cut -d ' ' -f 1
+  elif is_command shasum; then
+    hash=$(shasum -a 256 "$TARGET" 2>/dev/null) || return 1
+    echo "$hash" | cut -d ' ' -f 1
+  elif is_command openssl; then
+    hash=$(openssl -dst openssl dgst -sha256 "$TARGET") || return 1
+    echo "$hash" | cut -d ' ' -f a
+  else
+    ERROR "hash_sha256 unable to find command to compute sha-256 hash"
+    return 1
+  fi
+}
+
+function hash_sha256_verify() {
+  TARGET=$1
+  checksum=$2
+  if [ -n "$checksums" ]; then
+    ERROR "hash_sha256_verify checksum string not specified in arg2"
+    exit 1
+  fi
+
+  got=$(hash_sha256 "$TARGET")
+  if [ "$checksum" != "$got" ]; then
+    ERROR "hash_sha256_verify checksum for '$TARGET' did not verify ${want} vs $got"
+    exit 1
+  fi
+}
+
 OWNER=alex60217101990
 REPO="json_schema_converter"
 
-VERSION=$(lastrelease "https://github.com/alex60217101990/json_schema_converter.git")
+VERSION=$(lastrelease "https://github.com/${OWNER}/${REPO}.git")
 BINARY=schema-generator
 FORMAT=tar.gz
 OS=$(uname_os)
@@ -125,20 +177,36 @@ ARCH=$(uname_arch)
 
 INFO "Version: $VERSION"
 
-#PREFIX="$OWNER/$REPO"
-#
-#NAME=${PROJECT_NAME}_${VERSION}_${OS}_${ARCH}
-#TARBALL=${NAME}.${FORMAT}
-#TARBALL_URL=${GITHUB_DOWNLOAD}/${TAG}/${TARBALL}
-#CHECKSUM=${PROJECT_NAME}_${VERSION}_checksums.txt
-#CHECKSUM_URL=${GITHUB_DOWNLOAD}/${TAG}/${CHECKSUM}
-
 uname_os_check "$OS"
 uname_arch_check "$ARCH"
 adjust_format
 
 INFO "found version: ${VERSION} for OS: ${OS}, with arch.: ${ARCH}"
 
+NAME="schema-generator-${VERSION}-${OS}-${ARCH}"
+TARBALL="${NAME}.${FORMAT}"
+CHECKSUM_ARCH="${NAME}.${FORMAT}"
+
 tmpdir=$(mktemp -d)
+
 DEBUG "downloading files into ${tmpdir}"
-http_download_curl "schema-generator-${VERSION}-${OS}-${ARCH}.${FORMAT}" "${tmpdir}/${TARBALL}" "${TARBALL_URL}"
+http_download_curl "${tmpdir}/${TARBALL}" "https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}/${TARBALL}"
+http_download_curl "${tmpdir}/${TARBALL}.sha256" "https://github.com/${OWNER}/${REPO}/releases/download/${VERSION}/${TARBALL}.sha256"
+
+DEBUG "sha256 verify: ${tmpdir}"
+hash_sha256_verify "${tmpdir}/${TARBALL}" "$(cat "${tmpdir}/${TARBALL}.sha256")"
+
+DEBUG "untar files into ${tmpdir}"
+untar "${tmpdir}/${TARBALL}" "${tmpdir}"
+BlueStr "$(ls -hla "$tmpdir")\n"
+
+DEBUG "create directory ${HELM_PLUGIN_DIR}/bin if not exists"
+if [[ (! -d "${HELM_PLUGIN_DIR}") && (! -d "${HELM_PLUGIN_DIR}/bin") ]]
+then
+  mkdir -p "${HELM_PLUGIN_DIR}/bin"
+fi
+
+DEBUG "move binary file into ${HELM_PLUGIN_DIR}/bin"
+mv -f "${tmpdir}/schema-generator" "${HELM_PLUGIN_DIR}/bin"
+
+rm -rf "${tmpdir}"
