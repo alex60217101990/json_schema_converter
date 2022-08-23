@@ -1,0 +1,46 @@
+# options for analysis running
+run:
+  # default concurrency is a available CPU number
+  concurrency: 4
+  # timeout for analysis, e.g. 30s, 5m, default is 1m
+  timeout: 2m
+  skip-files:
+    - ".*_enum\\.go$"
+  go: '1.18'
+linters:
+  # please, do not use `enable-all`: it's deprecated and will be removed soon.
+  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
+  disable-all: true
+  
+  enable:
+    - typecheck
+    - dupl
+    - goprintffuncname
+    - govet
+    - nolintlint
+    - rowserrcheck
+    - gofmt
+    - revive
+    - goimports
+    - misspell
+    - bodyclose
+    - unconvert
+    - ineffassign
+    - staticcheck
+    - exportloopref
+    - structcheck
+    - deadcode
+    - depguard
+    - dogsled
+    - errcheck
+    - gci
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosimple
+    - stylecheck
+    - unused
+    - varcheck
+    - unparam
+    - unconvert
+    - whitespace
