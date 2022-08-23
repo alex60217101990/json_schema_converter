@@ -23,13 +23,12 @@ import (
 
 const (
 	defaultSchemaDir = "tmp/values.schema.json"
-	//defaultOverrideSchemaPath = "schemas/override-values.schema.json"
 )
 
 var (
-	log zerolog.Logger
+	log      zerolog.Logger
+	logLevel uint8
 
-	//overrideSchemaPath string
 	valuesYamlPath string
 	schemaPath     string
 
@@ -44,6 +43,10 @@ var rootCmd = &cobra.Command{
 	Long:    fmt.Sprintf(`%s - generate json schema from input helm chart values yaml/yml file`, color.GreenString("schema-generator")),
 	Run: func(cmd *cobra.Command, _ []string) {
 		rootDir := utils.RootDir()
+
+		fmt.Printf("log level: %d\n", logLevel)
+		// TODO: adding stack tracing for errors.
+		utils.ChangeLevel(logLevel, &log)
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -136,10 +139,9 @@ func init() {
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.schema-generator.yaml)")
-
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
+	rootCmd.Flags().Uint8VarP(&logLevel, "level", "l", 1, color.BlueString("logs level"))
 	rootCmd.Flags().StringVarP(&valuesYamlPath, "valuesPath", "v", "", color.BlueString("Path to yaml/yml file with chart values"))
 	rootCmd.Flags().StringVarP(&schemaPath, "schemaPath", "s", defaultSchemaDir, color.BlueString("Path for json schema file"))
 }
