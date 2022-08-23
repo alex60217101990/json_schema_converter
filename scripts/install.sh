@@ -1,6 +1,6 @@
 #!/bin/bash
 
-depsPath="$(dirname $BASH_SOURCE)"/tmp-scripts
+depsPath="$(cd "$(dirname "$(readlink -f "$BASH_SOURCE" || echo "$BASH_SOURCE")")" && pwd)"/tmp-scripts
 mkdir -p "$depsPath"
 
 curl -J -s \
@@ -13,9 +13,17 @@ curl -J -s \
   -o "$depsPath/logger.sh"\
   -L 'https://api.github.com/repos/alex60217101990/bash-tools/contents/logger.sh'
 
+curl -J -s \
+  -H 'Accept: application/vnd.github.v3.raw' \
+  -o "$depsPath/helpers.sh"\
+  -L 'https://api.github.com/repos/alex60217101990/bash-tools/contents/helpers.sh'
+
+. "$depsPath"/helpers.sh
 . "$depsPath"/logger.sh -c=true
 
-HELM_PLUGIN_DIR="$(echo "$(helm env | grep HELM_PLUGIN)" | cut -d '=' -f 2- | tr -d '"')/schema-generator"
+INFO "${HELM_PLUGIN_DIR} => ${HELM_PLUGINS}/${HELM_PLUGIN_NAME}"
+
+HELM_PLUGIN_DIR="$(echo "$(helm env | grep HELM_PLUGIN)" | cut -d '=' -f 2- | tr -d '"')/json_schema_converter"
 
 INFO "$HELM_PLUGIN_DIR"
 
@@ -200,13 +208,10 @@ DEBUG "untar files into ${tmpdir}"
 untar "${tmpdir}/${TARBALL}" "${tmpdir}"
 BlueStr "$(ls -hla "$tmpdir")\n"
 
-DEBUG "create directory ${HELM_PLUGIN_DIR}/bin if not exists"
-if [[ (! -d "${HELM_PLUGIN_DIR}") && (! -d "${HELM_PLUGIN_DIR}/bin") ]]
-then
-  mkdir -p "${HELM_PLUGIN_DIR}/bin"
-fi
-
 DEBUG "move binary file into ${HELM_PLUGIN_DIR}/bin"
-mv -f "${tmpdir}/schema-generator" "${HELM_PLUGIN_DIR}/bin"
+bash -c "${tmpdir}/schema-generator -h"
+BlueStr "$(ls -hla "${HELM_PLUGIN_DIR}/bin")\n"
+cp -fL "${tmpdir}/schema-generator" "${HELM_PLUGIN_DIR}/bin"
 
 rm -rf "${tmpdir}"
+rm -rf "${depsPath}"
