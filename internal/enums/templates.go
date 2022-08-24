@@ -1,6 +1,5 @@
 package enums
 
-//go:generate go-enum -type=PatchOperation -transform=lower
 // PatchOperation is an enumeration of json patch operation type values
 type PatchOperation int
 
