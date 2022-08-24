@@ -4,6 +4,13 @@ help: ## Display this help.
 
 ROOT_REPO_PATH := `git rev-parse --show-toplevel`
 
+BIN_PATH = ""
+
+## Build
+build: ## build binary
+	@printf "${COLOR_YELLOW}Start building binary file:${COLOR_NC}\n"
+	goreleaser build --single-target --snapshot --rm-dist
+
 ##@ Docker
 docker-build: ## build Dockerfile
 	docker -D build --no-cache -t schema-generator -f $(shell pwd)/deploy/Dockerfile .
