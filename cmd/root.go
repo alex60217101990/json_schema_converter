@@ -7,7 +7,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -68,7 +68,7 @@ var rootCmd = &cobra.Command{
 		// read helm chart yaml values file and convert to json...
 		var val []byte
 		if ok {
-			val, err = ioutil.ReadAll(os.Stdin)
+			val, err = io.ReadAll(os.Stdin)
 		} else {
 			val, err = os.ReadFile(valuesYamlPath)
 		}
@@ -122,7 +122,7 @@ var rootCmd = &cobra.Command{
 		}
 
 		log.Info().Msgf("write schema into file: %s", schemaPath)
-		err = ioutil.WriteFile(schemaPath, bts, 0644)
+		err = os.WriteFile(schemaPath, bts, 0644)
 		if err != nil {
 			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
