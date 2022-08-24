@@ -8,16 +8,14 @@ ROOT_REPO_PATH := `git rev-parse --show-toplevel`
 docker-build: ## build Dockerfile
 	docker -D build --no-cache -t schema-generator -f $(shell pwd)/deploy/Dockerfile .
 
-OVERRIDE_SCHEMA_PATH ?= "schemas/override-values.schema.json"
 SCHEMA_PATH ?= "tmp/values.schema.json"
 VALUES_PATH ?= ""
 HELM_CHART_PATH ?= "${ROOT_REPO_PATH}"
 docker-run: ## run docker container
-	@printf "${COLOR_YELLOW}override schema path=${OVERRIDE_SCHEMA_PATH}${COLOR_NC}\n"
 	@printf "${COLOR_YELLOW}schema path=${SCHEMA_PATH}${COLOR_NC}\n"
 	@printf "${COLOR_YELLOW}values yaml path=${VALUES_PATH}${COLOR_NC}\n"
-	docker run -it -v $(shell pwd)/schemas:/schemas -v "${in}":"${out}" --rm schema-generator /go/bin/app -v "${VALUES_PATH}" -s "${SCHEMA_PATH}" -o "${OVERRIDE_SCHEMA_PATH}"
+	docker run -it -v $(shell pwd)/schemas:/schemas -v "${in}":"${out}" --rm schema-generator /go/bin/app -v "${VALUES_PATH}" -s "${SCHEMA_PATH}"
 
 ##@ Run
 generate: ## generate json schema with default values
-	make docker-run in="${HELM_CHART_PATH}" out=/var -e OVERRIDE_SCHEMA_PATH=/schemas/override-values.schema.json -e VALUES_PATH=/var/values.yaml -e SCHEMA_PATH=/var/values.schema.json
+	make docker-run in="${HELM_CHART_PATH}" out=/var -e VALUES_PATH=/var/values.yaml -e SCHEMA_PATH=/var/values.schema.json
