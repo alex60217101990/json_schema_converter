@@ -1,13 +1,14 @@
 /*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
+Copyright © 2022 Oleksandr Yershov <oleksandr.yershov@hpe.com>
 */
+
 package cmd
 
 import (
 	"fmt"
-	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
 	"os"
+
+	"github.com/alex60217101990/json_schema_generator/internal/utils"
 
 	"github.com/spf13/cobra"
 )

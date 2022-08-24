@@ -17,7 +17,7 @@ import (
 
 	"github.com/alex60217101990/json_schema_generator/internal/enums"
 	"github.com/alex60217101990/json_schema_generator/internal/types"
-	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
+	"github.com/alex60217101990/json_schema_generator/internal/utils"
 )
 
 // jessie ware - remember where you are
@@ -25,7 +25,7 @@ import (
 const (
 	patternGroupName = "Json"
 
-	defaultSchemaUrl = "https://json-schema.org/draft/2019-09/schema"
+	defaultSchemaURL = "https://json-schema.org/draft/2019-09/schema"
 )
 
 type Parser struct {
@@ -154,7 +154,7 @@ func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan 
 		patchesJSON := []*types.Patch{{
 			OperationType: enums.Replace,
 			Path:          "/$schema",
-			Value:         []byte(fmt.Sprintf(`"%s"`, defaultSchemaUrl)),
+			Value:         []byte(fmt.Sprintf(`"%s"`, defaultSchemaURL)),
 		}}
 
 		patches := p.ChangeAllPath(jsonBts)

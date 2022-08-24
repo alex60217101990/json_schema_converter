@@ -1,12 +1,12 @@
-package types_convertation
+package utils
 
 import (
 	"fmt"
-	"github.com/fatih/color"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/pkgerrors"
 )

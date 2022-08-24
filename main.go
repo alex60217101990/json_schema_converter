@@ -1,6 +1,5 @@
 /*
 Copyright © 2022 Oleksandr Yershov <oleksandr.yershov@hpe.com>
-
 */
 package main
 

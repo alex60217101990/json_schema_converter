@@ -1,4 +1,4 @@
-package types_convertation
+package utils
 
 import (
 	"fmt"
@@ -41,7 +41,7 @@ func getSizeAndUnit(size float64, base float64, _map []string) (float64, string)
 	i := 0
 	unitsLimit := len(_map) - 1
 	for size >= base && i < unitsLimit {
-		size = size / base
+		size /= base
 		i++
 	}
 	return size, _map[i]

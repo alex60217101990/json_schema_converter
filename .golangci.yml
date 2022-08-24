@@ -6,13 +6,20 @@ run:
   timeout: 2m
   skip-files:
     - ".*_enum\\.go$"
-  go: '1.18'
+  go: '>=1.18.5'
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
   # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
   disable-all: true
-  
   enable:
+    - errchkjson
+    - errname
+    - errorlint
+    - execinquery
+    - exhaustive
+    - exportloopref
+    - forbidigo
+    - forcetypeassert
     - typecheck
     - dupl
     - goprintffuncname
@@ -31,9 +38,7 @@ linters:
     - structcheck
     - deadcode
     - depguard
-    - dogsled
     - errcheck
-    - gci
     - goconst
     - gocritic
     - gocyclo

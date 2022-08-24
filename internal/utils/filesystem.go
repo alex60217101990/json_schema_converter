@@ -1,4 +1,4 @@
-package types_convertation
+package utils
 
 import (
 	"context"
@@ -82,8 +82,6 @@ func OsSignalHandler(cancel context.CancelFunc, callbacks []func(), l ...interfa
 			for _, callback := range callbacks {
 				callback()
 			}
-
-			return
 		}
 	})
 }

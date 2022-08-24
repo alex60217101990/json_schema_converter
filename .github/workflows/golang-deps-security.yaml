@@ -1,6 +1,6 @@
 name: golang nancy deps security check
 on:
-  #push:
+  push:
   pull_request:
 jobs:
   build:

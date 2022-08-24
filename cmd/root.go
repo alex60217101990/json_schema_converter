@@ -21,7 +21,7 @@ import (
 
 	"github.com/alex60217101990/json_schema_generator/internal/enums"
 	"github.com/alex60217101990/json_schema_generator/internal/parser"
-	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
+	"github.com/alex60217101990/json_schema_generator/internal/utils"
 )
 
 const (
@@ -47,7 +47,6 @@ var rootCmd = &cobra.Command{
 		rootDir := utils.RootDir()
 
 		logLevel := cmd.PersistentFlags().Lookup("level").Value.String()
-		fmt.Printf("log level: %s\n", logLevel)
 
 		err := utils.ChangeLevel(logLevel, &log)
 		if err != nil {
@@ -86,7 +85,6 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		//var modified []byte
 		var bts []byte
 		p := &parser.Parser{}
 		bts, err = p.Init(&log).ParseSync(&data, val)
@@ -95,13 +93,15 @@ var rootCmd = &cobra.Command{
 			return
 		}
 
-		valuesJSON, err := yaml.YAMLToJSON(val)
+		var valuesJSON []byte
+		valuesJSON, err = yaml.YAMLToJSON(val)
 		if err != nil {
 			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
 		if bytes.Equal(valuesJSON, []byte("null")) {
+			//nolint:ineffassign,staticcheck
 			valuesJSON = []byte("{}")
 		}
 
@@ -162,7 +162,7 @@ func init() {
 	rootCmd.PersistentFlags().VarP(
 		enumflag.New(&logLevelMode, "logLevel", enums.LogLevelModeIds, enumflag.EnumCaseInsensitive),
 		"level", "l",
-		fmt.Sprintf("Logs level value. can be %s or %s ect.", color.YellowString("'info'"), color.YellowString("'warn'")))
+		fmt.Sprintf("Logs level value. can be %s or %s etc.", color.YellowString("'info'"), color.YellowString("'warn'")))
 	rootCmd.Flags().StringVarP(&valuesYamlPath, "valuesPath", "v", "", "Path to yaml/yml file with chart values")
 	rootCmd.Flags().StringVarP(&schemaPath, "schemaPath", "s", defaultSchemaDir, "Path for json schema file")
 }

@@ -1,4 +1,4 @@
-package types_convertation
+package utils
 
 import (
 	"bytes"
