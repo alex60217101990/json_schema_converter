@@ -14,6 +14,15 @@ import (
 	"github.com/rs/zerolog"
 )
 
+func IsInputFromPipe() (bool, error) {
+	fileInfo, err := os.Stdin.Stat()
+	if err != nil {
+		return false, err
+	}
+
+	return fileInfo.Mode()&os.ModeCharDevice == 0, nil
+}
+
 func RootDir() string {
 	_, b, _, _ := runtime.Caller(0)
 	d := path.Join(path.Dir(b))

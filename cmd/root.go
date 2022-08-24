@@ -12,11 +12,14 @@ import (
 	"path/filepath"
 
 	"github.com/fatih/color"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
+	"github.com/thediveo/enumflag/v2"
 	yaml_v3 "gopkg.in/yaml.v3"
 	"sigs.k8s.io/yaml"
 
+	"github.com/alex60217101990/json_schema_generator/internal/enums"
 	"github.com/alex60217101990/json_schema_generator/internal/parser"
 	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
 )
@@ -26,8 +29,8 @@ const (
 )
 
 var (
-	log      zerolog.Logger
-	logLevel uint8
+	log          zerolog.Logger
+	logLevelMode enums.LogLevelMode
 
 	valuesYamlPath string
 	schemaPath     string
@@ -37,34 +40,49 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Aliases: []string{color.GreenString("sgen")},
 	Version: version,
 	Short:   fmt.Sprintf("%s - %s", color.GreenString("schema-generator"), "CLI util for generate values.schema.json file from values.yaml helm chart file"),
 	Long:    fmt.Sprintf(`%s - generate json schema from input helm chart values yaml/yml file`, color.GreenString("schema-generator")),
 	Run: func(cmd *cobra.Command, _ []string) {
 		rootDir := utils.RootDir()
 
-		fmt.Printf("log level: %d\n", logLevel)
-		// TODO: adding stack tracing for errors.
-		utils.ChangeLevel(logLevel, &log)
+		logLevel := cmd.PersistentFlags().Lookup("level").Value.String()
+		fmt.Printf("log level: %s\n", logLevel)
+
+		err := utils.ChangeLevel(logLevel, &log)
+		if err != nil {
+			log.Fatal().Stack().Err(errors.WithStack(err)).Msg("")
+		}
 
 		defer func() {
 			if r := recover(); r != nil {
-				log.Fatal().Msgf("panic error: %v", r)
+				log.Fatal().Stack().Err(errors.WithStack(errors.Wrap(err, "panic error"))).Msg("")
 			}
 		}()
 
-		// read helm chart yaml values file and convert to json...
-		val, err := os.ReadFile(valuesYamlPath)
+		ok, err := utils.IsInputFromPipe()
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
+			return
+		}
+
+		// read helm chart yaml values file and convert to json...
+		var val []byte
+		if ok {
+			val, err = ioutil.ReadAll(os.Stdin)
+		} else {
+			val, err = os.ReadFile(valuesYamlPath)
+		}
+
+		if err != nil {
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
 		var data yaml_v3.Node
 		err = yaml_v3.Unmarshal(val, &data)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
@@ -73,13 +91,13 @@ var rootCmd = &cobra.Command{
 		p := &parser.Parser{}
 		bts, err = p.Init(&log).ParseSync(&data, val)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
 		valuesJSON, err := yaml.YAMLToJSON(val)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
@@ -91,7 +109,7 @@ var rootCmd = &cobra.Command{
 			tmpPath := filepath.Join(rootDir, filepath.Dir(defaultSchemaDir))
 			if _, err := os.Stat(tmpPath); os.IsNotExist(err) {
 				if err = os.MkdirAll(tmpPath, 0755); err != nil {
-					log.Error().Msg(err.Error())
+					log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 					return
 				}
 
@@ -106,31 +124,31 @@ var rootCmd = &cobra.Command{
 		log.Info().Msgf("write schema into file: %s", schemaPath)
 		err = ioutil.WriteFile(schemaPath, bts, 0644)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
 		// generate json schema from input json values...
 		info, err := os.Stat(schemaPath)
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(errors.WithStack(err)).Msg("")
 			return
 		}
 
 		log.Debug().Msgf("json schema: %s file size: %s", schemaPath, utils.HumanSize(float64(info.Size())))
 	},
-	Use: color.GreenString("schema-generator"),
+	Use: "schema-generator",
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	log = utils.InitLogger()
+	log = utils.InitLogger(true)
 
 	go utils.OsSignalHandler(nil, nil, log)
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal().Msgf("Generator CLI finished with error: '%s'", err)
+		log.Fatal().Stack().Err(errors.WithMessage(err, "Generator CLI finished with error"))
 	}
 }
 
@@ -141,7 +159,10 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().Uint8VarP(&logLevel, "level", "l", 1, color.BlueString("logs level"))
-	rootCmd.Flags().StringVarP(&valuesYamlPath, "valuesPath", "v", "", color.BlueString("Path to yaml/yml file with chart values"))
-	rootCmd.Flags().StringVarP(&schemaPath, "schemaPath", "s", defaultSchemaDir, color.BlueString("Path for json schema file"))
+	rootCmd.PersistentFlags().VarP(
+		enumflag.New(&logLevelMode, "logLevel", enums.LogLevelModeIds, enumflag.EnumCaseInsensitive),
+		"level", "l",
+		fmt.Sprintf("Logs level value. can be %s or %s ect.", color.YellowString("'info'"), color.YellowString("'warn'")))
+	rootCmd.Flags().StringVarP(&valuesYamlPath, "valuesPath", "v", "", "Path to yaml/yml file with chart values")
+	rootCmd.Flags().StringVarP(&schemaPath, "schemaPath", "s", defaultSchemaDir, "Path for json schema file")
 }

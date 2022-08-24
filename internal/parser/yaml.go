@@ -2,22 +2,22 @@ package parser
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/alex60217101990/json_schema_generator/internal/types"
-	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
-	jsonpatch "github.com/evanphx/json-patch"
-	"github.com/karuppiah7890/go-jsonschema-generator"
-	"helm.sh/helm/v3/pkg/chartutil"
 	"regexp"
 	"strconv"
 	"strings"
 
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/karuppiah7890/go-jsonschema-generator"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/tidwall/gjson"
 	"gopkg.in/yaml.v3"
+	"helm.sh/helm/v3/pkg/chartutil"
 
 	"github.com/alex60217101990/json_schema_generator/internal/enums"
+	"github.com/alex60217101990/json_schema_generator/internal/types"
+	utils "github.com/alex60217101990/json_schema_generator/internal/utils"
 )
 
 // jessie ware - remember where you are
@@ -59,7 +59,7 @@ func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[enums.PatchOperation
 
 			bts, err := json.Marshal(m)
 			if err != nil {
-				p.log.Fatal().Msg(err.Error())
+				p.log.Fatal().Stack().Err(errors.WithStack(err)).Msg("")
 			}
 
 			data[enums.Add][correctPath] = string(bts)
@@ -75,7 +75,7 @@ func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[enums.PatchOperation
 			v := make(map[string]interface{})
 			err := json.Unmarshal([]byte(val), &v)
 			if err != nil {
-				p.log.Fatal().Msg(err.Error())
+				p.log.Fatal().Stack().Err(errors.WithStack(err)).Msg("")
 			}
 
 			for key, value := range v {
@@ -84,7 +84,7 @@ func (p *Parser) ChangeAllPath(jsonSchema []byte) (data map[enums.PatchOperation
 
 			newBts, err := json.Marshal(m)
 			if err != nil {
-				p.log.Fatal().Msg(err.Error())
+				p.log.Fatal().Stack().Err(errors.WithStack(err)).Msg("")
 			}
 
 			data[enums.Replace][correctPath] = string(newBts)
@@ -119,9 +119,9 @@ func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan 
 			if r := recover(); r != nil {
 				switch err := r.(type) {
 				case string:
-					p.errCh <- errors.New(err)
+					p.errCh <- errors.WithStack(errors.New(err))
 				case error:
-					p.errCh <- err
+					p.errCh <- errors.WithStack(err)
 				}
 			}
 
@@ -137,7 +137,7 @@ func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan 
 		var v chartutil.Values
 		err := yaml.Unmarshal(val, &v)
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
@@ -145,7 +145,7 @@ func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan 
 		schema.ReadDeep(&v)
 		jsonBts, err := schema.Marshal()
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
@@ -177,25 +177,25 @@ func (p *Parser) ParseAsync(node *yaml.Node, val []byte) (<-chan []byte, <-chan 
 
 		tmpBts, err := json.Marshal(patchesJSON)
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
 		patch, err := jsonpatch.DecodePatch(tmpBts)
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
 		modified, err = patch.Apply(jsonBts)
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
 		bts, err := utils.PrettyString(modified)
 		if err != nil {
-			p.errCh <- err
+			p.errCh <- errors.WithStack(err)
 			return
 		}
 
@@ -253,7 +253,7 @@ func (p *Parser) start(n *yaml.Node, path string, isSlice bool) {
 				if name == patternGroupName && len(match[i]) > 0 {
 					err := json.Unmarshal([]byte(match[i]), &val)
 					if err != nil {
-						p.errCh <- err
+						p.errCh <- errors.WithStack(err)
 					}
 
 					value = match[i]
@@ -266,14 +266,14 @@ func (p *Parser) start(n *yaml.Node, path string, isSlice bool) {
 			if v, ok := val["required"]; ok {
 				err := p.appendRequired(v, true, path, fieldName)
 				if err != nil {
-					p.errCh <- err
+					p.errCh <- errors.WithStack(err)
 				}
 			}
 
 			if v, ok := val["optional"]; ok {
 				err := p.appendRequired(v, false, path, fieldName)
 				if err != nil {
-					p.errCh <- err
+					p.errCh <- errors.WithStack(err)
 				}
 			}
 		}

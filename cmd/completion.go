@@ -59,7 +59,7 @@ PowerShell:
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.ExactValidArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		log = utils.InitLogger()
+		log = utils.InitLogger(true)
 		var err error
 		switch args[0] {
 		case "bash":
@@ -73,7 +73,7 @@ PowerShell:
 		}
 
 		if err != nil {
-			log.Error().Msg(err.Error())
+			log.Error().Stack().Err(err)
 		}
 	},
 }
