@@ -1,5 +1,5 @@
 # This vulnerability from go.sum file
-CVN-400 # Uncontrolled Resource Consumption ('Resource Exhaustion') => pkg:golang/github.com/pkg/sftp@v1.10.1
+CWE-400 # Uncontrolled Resource Consumption ('Resource Exhaustion') => pkg:golang/github.com/pkg/sftp@v1.10.1
 CWE-918 # Server-Side Request Forgery (SSRF) => pkg:golang/github.com/hashicorp/consul/api@v1.1.0, pkg:golang/github.com/hashicorp/consul/sdk@v0.1.1
 CWE-338 # Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG) => pkg:golang/github.com/miekg/dns@v1.0.14
-# .nancy-ignore.global
+CVE-2022-29153

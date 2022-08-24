@@ -1,4 +1,4 @@
-name: Go Nancy
+name: golang nancy deps security check
 on:
   push:
 jobs:
@@ -16,4 +16,4 @@ jobs:
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@main
         with:
-          nancyCommand: sleuth --loud -x .nancy-ignore.global
+          nancyCommand: sleuth --loud -x .nancy-ignore.global -a .nancy-ignore.global
