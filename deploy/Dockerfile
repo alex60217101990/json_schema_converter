@@ -18,9 +18,9 @@ RUN go mod verify
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -v -a -o /main .
 
-FROM alpine:latest as compress
+FROM alpine:3.15.0 as compress
 
-RUN apk update && apk add --no-cache upx
+RUN apk update && apk add --no-cache upx=3.96-r1
 
 WORKDIR /usr/bin
 
