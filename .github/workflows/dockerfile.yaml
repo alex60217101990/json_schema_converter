@@ -3,11 +3,11 @@ on:
   push:
   pull_request:
 jobs:
-  docker_scanning:
-    name: Scanning Dockerfile
-    runs:
-      using: 'docker'
-      image: 'Dockerfile'
+#  docker_scanning:
+#    name: Scanning Dockerfile
+#    runs:
+#      using: 'docker'
+#      image: 'Dockerfile'
   check_release_version:
     name: Check release version
     runs-on: ubuntu-latest
@@ -35,15 +35,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: |-
-          apt-get update && apt-get install docker-scan-plugin;
+      - name: docker-scan-plugin
+        run: |-
+          apt-get update && apt-get install docker-scan-plugin
           docker scan --file ./deploy/Dockerfile --dependency-tree docker-scan:e2e
   docker_ci:
     name: Docker image CI steps
     needs:
-      -  check_release_version
+      - check_release_version
       - dockerfile_lint
-      -  docker_scan
+      - docker_scan
     runs-on: ubuntu-latest
     steps:
       - name: Login to ghcr.io registry
