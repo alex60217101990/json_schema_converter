@@ -3,11 +3,6 @@ on:
   push:
   pull_request:
 jobs:
-#  docker_scanning:
-#    name: Scanning Dockerfile
-#    runs:
-#      using: 'docker'
-#      image: 'Dockerfile'
   check_release_version:
     name: Check release version
     runs-on: ubuntu-latest

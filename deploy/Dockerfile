@@ -18,9 +18,15 @@ RUN go mod verify
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -v -a -o /main .
 
-RUN upx --brute /main
+FROM alpine:latest as compress
 
-FROM
+RUN apk update && apk add --no-cache upx
+
+WORKDIR /usr/bin
+
+COPY --from=base /main /usr/bin
+
+RUN upx --ultra-brute /usr/bin/main
 
 FROM scratch
 
@@ -31,7 +37,7 @@ COPY --from=base /etc/group /etc/group
 
 WORKDIR /usr/bin
 
-COPY --from=base /main /usr/bin
+COPY --from=compress /usr/bin/main /usr/bin
 
 USER small-user:small-user
 

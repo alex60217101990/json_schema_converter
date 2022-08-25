@@ -10,7 +10,8 @@ builds:
   - env:
       - CGO_ENABLED=0
     flags:
-      - -v -a
+      - -v
+      - -a
     ldflags:
       - -s -w -X main.build={{ .Version }}
     goos:
@@ -19,7 +20,7 @@ builds:
       - darwin
     hooks:
       post:
-        - upx "{{ .Path }}"
+        - upx --ultra-brute "{{ .Path }}"
 archives:
   - replacements:
       darwin: Darwin
