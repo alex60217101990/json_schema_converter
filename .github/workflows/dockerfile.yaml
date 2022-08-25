@@ -1,0 +1,56 @@
+name: dockerfiles setup
+on:
+  push:
+  pull_request:
+jobs:
+#  docker_scanning:
+#    name: Scanning Dockerfile
+#    runs:
+#      using: 'docker'
+#      image: 'Dockerfile'
+  check_release_version:
+    name: Check release version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set output
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      - name: Check output
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        run: |
+          echo $RELEASE_VERSION
+          echo ${{ steps.vars.outputs.tag }}
+  dockerfile_lint:
+    name: Dockerfiles linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hadolint/hadolint-action@v2.0.0
+        with:
+          recursive: true
+          verbose: true
+  docker_ci:
+    name: Docker image CI steps
+    needs:
+      -  check_release_version
+      - dockerfile_lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to ghcr.io registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: ./deploy/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          push: true
+          tags: ${{ github.actor }}/schema-generator:latest
+          cache-from: type=registry,ref=${{ github.actor }}/schema-generator:buildcache
+          cache-to: type=registry,ref=${{ github.actor }}/schema-generator:buildcache,mode=max

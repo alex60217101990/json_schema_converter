@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
 jobs:
-  build:
+  nancy:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
