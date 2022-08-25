@@ -41,7 +41,7 @@ jobs:
           curl https://github.com/docker/scan-cli-plugin/releases/latest/download/docker-scan_linux_amd64 -L -s -S -o ~/.docker/cli-plugins/docker-scan &&\
           chmod +x ~/.docker/cli-plugins/docker-scan
       - run: make docker-build
-      - run: echo "${DOCKER_HUB_PASSWORD}" | docker login --username "${DOCKER_HUB_USERNAME}" --password-stdin
+      - run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
       - run: docker scan --file ./deploy/Dockerfile --dependency-tree schema-generator:latest
   docker_ci:
     name: Docker image CI steps
