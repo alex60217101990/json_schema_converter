@@ -1,6 +1,6 @@
 #### For running docker container ***`schema-generator`*** with generator util:
 ```shell
-cat <path to you helm chart values file>/values.yaml | docker run -v "$(pwd)"/tmp:/tmp --rm -i schema-generator /main -l debug -s /tmp/tmp-values.schema.json
+cat <path to you helm chart values file>/values.yaml | docker run -v "$(pwd)"/tmp:/tmp --rm -i schema-generator /usr/bin/main -l debug -s /tmp/tmp-values.schema.json
 ```
 ##### where:
 - ***`in`*** - using for volume mounting directory with ***`Helm`*** chart into container file system (set mount from host)

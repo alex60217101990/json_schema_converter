@@ -21,7 +21,7 @@ HELM_CHART_PATH ?= "${ROOT_REPO_PATH}"
 docker-run: ## run docker container
 	@printf "${COLOR_YELLOW}schema path=${SCHEMA_PATH}${COLOR_NC}\n"
 	@printf "${COLOR_YELLOW}values yaml path=${VALUES_PATH}${COLOR_NC}\n"
-	docker run -it -v $(shell pwd)/schemas:/schemas -v "${in}":"${out}" --rm schema-generator /go/bin/app -v "${VALUES_PATH}" -s "${SCHEMA_PATH}"
+	docker run -it -v $(shell pwd)/schemas:/schemas -v "${in}":"${out}" --rm schema-generator /usr/bin/main -v "${VALUES_PATH}" -s "${SCHEMA_PATH}"
 
 ##@ Run
 generate: ## generate json schema with default values

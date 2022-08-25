@@ -12,16 +12,22 @@ jobs:
     name: Check release version
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - name: Set output
-        id: vars
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
-      - name: Check output
-        env:
-          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
-        run: |
-          echo $RELEASE_VERSION
-          echo ${{ steps.vars.outputs.tag }}
+      - uses: oprypin/find-latest-tag@v1
+        with:
+          repository: ${{ github.actor }}/json_schema_converter  # The repository to scan.
+          releases-only: true  # We know that all relevant tags have a GitHub release for them.
+        id: octokit  # The step ID to refer to later.
+      - run: echo "Octokit is at version ${{ steps.octokit.outputs.tag }}"
+#      - uses: actions/checkout@v2
+#      - name: Set output
+#        id: vars
+#        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+#      - name: Check output
+#        env:
+#          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+#        run: |
+#          echo $RELEASE_VERSION
+#          echo ${{ steps.vars.outputs.tag }}
   dockerfile_lint:
     name: Dockerfiles linting
     runs-on: ubuntu-latest
@@ -31,6 +37,7 @@ jobs:
         with:
           recursive: true
           verbose: true
+          failure-threshold: warning
   docker_ci:
     name: Docker image CI steps
     needs:
