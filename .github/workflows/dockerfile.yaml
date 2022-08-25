@@ -35,14 +35,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-#      - run: sudo apt-get update && sudo apt-get install -y docker-scan-plugin
+      - run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
       - run: |-
           mkdir -p ~/.docker/cli-plugins && \
           curl https://github.com/docker/scan-cli-plugin/releases/latest/download/docker-scan_linux_amd64 -L -s -S -o ~/.docker/cli-plugins/docker-scan &&\
           chmod +x ~/.docker/cli-plugins/docker-scan
       - run: make docker-build
-      - run: echo ${{ secrets.DOCKER_HUB_PASSWORD }} | docker login --username ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
-      - run: docker scan --file ./deploy/Dockerfile --dependency-tree schema-generator:latest
+      - run: docker scan --file ./deploy/Dockerfile --dependency-tree --accept-license schema-generator:latest
   docker_ci:
     name: Docker image CI steps
     needs:
@@ -79,8 +78,3 @@ jobs:
           tags: ghcr.io/${{ github.actor }}/schema-generator:${{ needs.check_release_version.outputs.tag }}
           cache-from: type=registry,ref=ghcr.io/${{ github.actor }}/schema-generator:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.actor }}/schema-generator:buildcache,mode=max
-      - run: |-
-          mkdir -p ~/.docker/cli-plugins && \
-          curl https://github.com/docker/scan-cli-plugin/releases/latest/download/docker-scan_linux_amd64 -L -s -S -o ~/.docker/cli-plugins/docker-scan &&\
-          chmod +x ~/.docker/cli-plugins/docker-scan
-      - run: docker scan --file ./deploy/Dockerfile --dependency-tree ghcr.io/${{ github.actor }}/schema-generator:${{ needs.check_release_version.outputs.tag }}
