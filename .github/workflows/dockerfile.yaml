@@ -54,6 +54,7 @@ jobs:
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
+      - run: echo "Octokit is at version ${{ steps.octokit.outputs.tag }}"
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
