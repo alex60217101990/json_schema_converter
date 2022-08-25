@@ -77,3 +77,8 @@ jobs:
           tags: ghcr.io/${{ github.actor }}/schema-generator:${{ needs.check_release_version.outputs.tag }}
           cache-from: type=registry,ref=ghcr.io/${{ github.actor }}/schema-generator:buildcache
           cache-to: type=registry,ref=ghcr.io/${{ github.actor }}/schema-generator:buildcache,mode=max
+      - run: |-
+          mkdir -p ~/.docker/cli-plugins && \
+          curl https://github.com/docker/scan-cli-plugin/releases/latest/download/docker-scan_linux_amd64 -L -s -S -o ~/.docker/cli-plugins/docker-scan &&\
+          chmod +x ~/.docker/cli-plugins/docker-scan
+      - run: docker scan --file ./deploy/Dockerfile --dependency-tree ghcr.io/${{ github.actor }}/schema-generator:${{ needs.check_release_version.outputs.tag }}
