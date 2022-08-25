@@ -9,10 +9,17 @@ before:
 builds:
   - env:
       - CGO_ENABLED=0
+    flags:
+      - -v -a
+    ldflags:
+      - -s -w -X main.build={{ .Version }}
     goos:
       - linux
       - windows
       - darwin
+    hooks:
+      post:
+        - upx "{{ .Path }}"
 archives:
   - replacements:
       darwin: Darwin

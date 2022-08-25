@@ -42,6 +42,11 @@ jobs:
           chmod +x ~/.docker/cli-plugins/docker-scan
       - run: make docker-build
       - run: docker scan --file ./deploy/Dockerfile --dependency-tree --accept-license schema-generator:latest
+      - uses: anchore/scan-action@v3
+        with:
+          image: schema-generator:latest
+          fail-build: true
+          severity-cutoff: low
   docker_ci:
     name: Docker image CI steps
     needs:

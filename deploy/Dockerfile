@@ -18,6 +18,10 @@ RUN go mod verify
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -v -a -o /main .
 
+RUN upx --brute /main
+
+FROM
+
 FROM scratch
 
 COPY --from=base /usr/share/zoneinfo /usr/share/zoneinfo
