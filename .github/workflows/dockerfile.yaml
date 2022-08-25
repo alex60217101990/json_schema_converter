@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: apt-get update && apt-get install docker-scan-plugin
+      - run: sudo apt-get install -y docker-scan-plugin
       - run: docker scan --file ./deploy/Dockerfile --dependency-tree docker-scan:e2e
   docker_ci:
     name: Docker image CI steps
